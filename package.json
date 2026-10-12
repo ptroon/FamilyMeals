@@ -1,0 +1,60 @@
+{
+  "name": "familymeals",
+  "version": "0.4.0",
+  "description": "FamilyMeals - Wholesome Family Meal Planner, Macro Nutrient Tracker & Shopping List Generator",
+  "main": "dist/server/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "dev:client": "vite",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node dist/server/index.js",
+    "seed": "tsx src/server/db/seed.ts",
+    "db:init-blank": "tsx src/server/db/initBlank.ts"
+  },
+  "keywords": [
+    "meal-planner",
+    "macros",
+    "recipes",
+    "shopping-list",
+    "family",
+    "healthy-eating",
+    "google-app-hosting"
+  ],
+  "author": "FamilyMeals",
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "js-yaml": "^5.4.3",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.55.0",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.5",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

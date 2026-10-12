@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <circle cx="32" cy="32" r="30" fill="#faf7f2" stroke="#c2593f" stroke-width="4"/>
+  <!-- Cooking Dutch Oven / Skillet Pot -->
+  <path d="M16 32C16 42 23 48 32 48C41 48 48 42 48 32H16Z" fill="#c2593f"/>
+  <rect x="14" y="28" width="36" height="5" rx="2.5" fill="#a4462e"/>
+  <path d="M10 32C10 30 14 30 14 32" stroke="#a4462e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 32C50 30 54 30 54 32" stroke="#a4462e" stroke-width="3" stroke-linecap="round"/>
+  <!-- Wholesome Sage Herb Leaf -->
+  <path d="M32 24C32 24 28 16 32 12C36 16 32 24 32 24Z" fill="#4a6b57"/>
+  <path d="M32 14L32 24" stroke="#faf7f2" stroke-width="1.5"/>
+</svg>
+
