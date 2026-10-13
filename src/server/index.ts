@@ -127,10 +127,10 @@ if (sslCertPath && sslKeyPath && fs.existsSync(sslCertPath) && fs.existsSync(ssl
     key: fs.readFileSync(sslKeyPath)
   };
   https.createServer(httpsOptions, app).listen(PORT, () => {
-    console.log(`[FamilyMeals v0.4] HTTPS Server started with TLS certificate on https://localhost:${PORT}`);
+    console.log(`[FamilyMeals v1.0] HTTPS Server started with TLS certificate on https://localhost:${PORT}`);
   });
 } else {
   app.listen(PORT, () => {
-    console.log(`[FamilyMeals v0.4] Server started and listening on http://localhost:${PORT}`);
+    console.log(`[FamilyMeals v1.0] Server started and listening on http://localhost:${PORT}`);
   });
 }
