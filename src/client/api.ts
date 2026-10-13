@@ -44,10 +44,38 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 // Auth API
+async function downloadFile(endpoint: string, defaultFilename: string): Promise<void> {
+  const token = localStorage.getItem('familymeals_token');
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE}${endpoint}`, { headers });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `Download failed with status ${res.status}`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  let filename = defaultFilename;
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  if (match && match[1]) {
+    filename = match[1];
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 export const api = {
   // Auth
   register: (payload: { email: string; password: string; name: string }) =>
-    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+    request<{ message: string; pending?: boolean; user?: User; token?: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
 
   login: (payload: { email: string; password: string }) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
@@ -185,7 +213,12 @@ export const api = {
       body: JSON.stringify({ target_email })
     }),
 
-  getDatabaseBackupUrl: () => '/api/admin/backup/database',
+  getDatabaseBackupUrl: () => {
+    const t = localStorage.getItem('familymeals_token');
+    return `/api/admin/backup/database${t ? '?token=' + encodeURIComponent(t) : ''}`;
+  },
+
+  downloadDatabaseBackup: () => downloadFile('/admin/backup/database', 'familymeals-backup.db'),
 
   restoreDatabase: async (file: File) => {
     const formData = new FormData();
@@ -217,7 +250,32 @@ export const api = {
     }
   },
 
-  getBulkExportUrl: (format: 'yaml' | 'json') => `/api/admin/export/${format}`,
+  getBulkExportUrl: (format: 'yaml' | 'json') => {
+    const t = localStorage.getItem('familymeals_token');
+    return `/api/admin/export/${format}${t ? '?token=' + encodeURIComponent(t) : ''}`;
+  },
+
+  downloadBulkExport: (format: 'yaml' | 'json') =>
+    downloadFile(`/admin/export/${format}`, `familymeals-export.${format}`),
+
+  // User Management
+  getUsers: () =>
+    request<{ users: User[] }>('/admin/users'),
+
+  approveUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${id}/approve`, {
+      method: 'POST'
+    }),
+
+  rejectUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${id}/reject`, {
+      method: 'POST'
+    }),
+
+  deleteUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${id}`, {
+      method: 'DELETE'
+    }),
 
   // AI
   parseRecipeWithAI: (text: string) =>

@@ -49,7 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenA
               letterSpacing: '0.02em',
               verticalAlign: 'middle'
             }}>
-              v0.4
+              v1.0
             </span>
           </div>
         </a>

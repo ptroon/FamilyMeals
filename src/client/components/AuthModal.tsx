@@ -14,6 +14,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ initialMode, onClose }) =>
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [registrationSuccess, setRegistrationSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleClientId, setGoogleClientId] = useState('');
@@ -34,6 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ initialMode, onClose }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setRegistrationSuccess(null);
 
     if (mode === 'register' && !isPasswordValid) {
       setError('Password must be at least 8 characters long, include at least 1 number, and at least 1 special character.');
@@ -49,8 +51,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ initialMode, onClose }) =>
         onClose();
       } else {
         const res = await api.register({ email, password, name });
-        login(res.token, res.user);
-        onClose();
+        setRegistrationSuccess(
+          res.message ||
+          'Registration successful! Your account has been submitted and is currently pending administrator approval before you can sign in. Please contact your family admin.'
+        );
+        setPassword('');
+        setMode('login');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed.');
@@ -131,6 +137,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ initialMode, onClose }) =>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             {error && <div className="alert alert-error">{error}</div>}
+
+            {registrationSuccess && (
+              <div style={{
+                padding: '14px 16px',
+                background: 'var(--macro-protein-bg)',
+                border: '1px solid var(--secondary)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--secondary)',
+                marginBottom: '16px',
+                fontSize: '0.88rem',
+                lineHeight: 1.45
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '6px' }}>
+                  <Check size={18} /> Account Registered — Pending Approval
+                </div>
+                {registrationSuccess}
+              </div>
+            )}
 
             {/* Google SSO Button */}
             <div style={{ marginBottom: '18px' }}>

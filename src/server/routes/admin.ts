@@ -131,6 +131,7 @@ router.get('/backup/database', (req: AuthenticatedRequest, res: Response): void 
     db.pragma('wal_checkpoint(TRUNCATE)');
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     res.setHeader('Content-Type', 'application/vnd.sqlite3');
     res.setHeader('Content-Disposition', `attachment; filename="familymeals-backup-${timestamp}.db"`);
 
@@ -375,6 +376,7 @@ router.get('/export/:format', (req: AuthenticatedRequest, res: Response): void =
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="familymeals-export-${timestamp}.json"`);
@@ -386,6 +388,78 @@ router.get('/export/:format', (req: AuthenticatedRequest, res: Response): void =
     }
   } catch (err: any) {
     res.status(500).send('Bulk export failed: ' + err.message);
+  }
+});
+
+// User Management: List all users
+router.get('/users', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const users = db.prepare(`
+      SELECT id, email, name, role, COALESCE(status, 'approved') as status, created_at, updated_at
+      FROM users
+      ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at DESC
+    `).all() as any[];
+
+    res.json({ users });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch users.' });
+  }
+});
+
+// User Management: Approve user registration
+router.post('/users/:id/approve', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const now = new Date().toISOString();
+    const result = db.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?').run('approved', now, id);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ message: 'User approved successfully. They can now log in.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to approve user.' });
+  }
+});
+
+// User Management: Reject user registration
+router.post('/users/:id/reject', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const { id } = req.params;
+    const now = new Date().toISOString();
+    const result = db.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?').run('rejected', now, id);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ message: 'User registration rejected.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to reject user.' });
+  }
+});
+
+// User Management: Delete user
+router.delete('/users/:id', (req: AuthenticatedRequest, res: Response): void => {
+  try {
+    const { id } = req.params;
+    if (req.user!.id === id) {
+      res.status(400).json({ error: 'You cannot delete your own active administrator account.' });
+      return;
+    }
+
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+
+    res.json({ message: 'User deleted successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to delete user.' });
   }
 });
 

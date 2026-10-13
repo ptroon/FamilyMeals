@@ -124,6 +124,11 @@ function formatDisplayAmount(amount: number, unit: string): { amount: number; un
     };
   }
 
+  // Condiments/spices measured in spoonfuls (tbsp or tsp) should not display volume on the grocery list
+  if (['tbsp', 'tsp', 'tablespoon', 'tablespoons', 'teaspoon', 'teaspoons', 'spoon'].includes(unit.toLowerCase())) {
+    return { amount: 0, unit: '' };
+  }
+
   let rounded = Math.round(amount * 100) / 100;
 
   if (unit === 'g' && rounded >= 1000) {
@@ -137,13 +142,6 @@ function formatDisplayAmount(amount: number, unit: string): { amount: number; un
     return {
       amount: Math.round((rounded / 1000) * 100) / 100,
       unit: 'L'
-    };
-  }
-
-  if (unit === 'tsp' && rounded >= 3 && rounded % 3 === 0) {
-    return {
-      amount: rounded / 3,
-      unit: 'tbsp'
     };
   }
 
@@ -249,7 +247,8 @@ export function exportToCsv(items: ShoppingListItem[], mealPlanName: string): st
     const escapedItem = item.item.replace(/"/g, '""');
     const escapedCategory = item.category.replace(/"/g, '""');
     const checkedStr = item.checked ? 'Yes' : 'No';
-    lines.push(`"${escapedItem}",${item.amount},"${item.unit}","${escapedCategory}","${checkedStr}"`);
+    const amountStr = item.amount && item.amount > 0 ? String(item.amount) : '';
+    lines.push(`"${escapedItem}","${amountStr}","${item.unit || ''}","${escapedCategory}","${checkedStr}"`);
   }
 
   return lines.join('\r\n');
@@ -269,8 +268,8 @@ export function exportToPlainText(items: ShoppingListItem[], mealPlanName: strin
       lines.push(`\n[ ${currentCategory.toUpperCase()} ]`);
     }
     const checkMark = item.checked ? '[x]' : '[ ]';
-    const unitPart = item.unit ? ` ${item.unit}` : '';
-    lines.push(`${checkMark} ${item.amount}${unitPart} ${item.item}`);
+    const unitPart = item.amount && item.amount > 0 ? `${item.amount}${item.unit ? ' ' + item.unit : ''} ` : '';
+    lines.push(`${checkMark} ${unitPart}${item.item}`.trim());
   }
 
   return lines.join('\n');

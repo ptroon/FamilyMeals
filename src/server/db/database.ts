@@ -27,6 +27,7 @@ export function initDatabase() {
       password_hash TEXT NOT NULL,
       name TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
+      status TEXT NOT NULL DEFAULT 'approved',
       saved_emails TEXT DEFAULT '[]',
       distribution_lists TEXT DEFAULT '[]',
       created_at TEXT NOT NULL,
@@ -167,6 +168,13 @@ export function initDatabase() {
     }
   }
 
+  // Migration: Ensure status column exists on users
+  try {
+    db.prepare("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'").run();
+  } catch {
+    // Column already exists
+  }
+
   // Seed default admin account if none exists
   const adminCheck = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
   if (!adminCheck) {
@@ -177,8 +185,8 @@ export function initDatabase() {
     const adminId = crypto.randomUUID();
 
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, role, saved_emails, distribution_lists, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'admin', '[]', '[]', ?, ?)
+      INSERT INTO users (id, email, password_hash, name, role, status, saved_emails, distribution_lists, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'admin', 'approved', '[]', '[]', ?, ?)
     `).run(adminId, adminEmail, passwordHash, 'Head Chef Admin', now, now);
 
     console.log(`[Database] First run initialized: Created blank database with default administrator (${adminEmail})`);
@@ -220,13 +228,13 @@ export function resetToBlankDatabase(): { backupPath?: string; adminEmail: strin
     const existingAdmin = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get() as { id: string } | undefined;
     if (!existingAdmin) {
       db.prepare(`
-        INSERT INTO users (id, email, password_hash, name, role, saved_emails, distribution_lists, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'admin', '[]', '[]', ?, ?)
+        INSERT INTO users (id, email, password_hash, name, role, status, saved_emails, distribution_lists, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'admin', 'approved', '[]', '[]', ?, ?)
       `).run(crypto.randomUUID(), adminEmail, passwordHash, 'Head Chef Admin', now, now);
     } else {
       db.prepare(`
         UPDATE users
-        SET saved_emails = '[]', distribution_lists = '[]', updated_at = ?
+        SET status = 'approved', saved_emails = '[]', distribution_lists = '[]', updated_at = ?
         WHERE id = ?
       `).run(now, existingAdmin.id);
     }

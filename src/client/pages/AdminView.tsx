@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings } from '../../types/index.js';
+import { AppSettings, User } from '../../types/index.js';
 import { api } from '../api.js';
 import {
   Shield,
@@ -13,15 +13,30 @@ import {
   AlertCircle,
   Send,
   Save,
-  HelpCircle
+  HelpCircle,
+  Users,
+  Check,
+  X,
+  Trash2,
+  Clock
 } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'smtp' | 'import' | 'export' | 'backup'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'users' | 'smtp' | 'import' | 'export' | 'backup'>('settings');
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // User Management state
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userActionMsg, setUserActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // File Download states
+  const [downloadingDb, setDownloadingDb] = useState(false);
+  const [downloadingExport, setDownloadingExport] = useState<'json' | 'yaml' | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // SMTP test state
   const [testEmail, setTestEmail] = useState('');
@@ -43,7 +58,79 @@ export const AdminView: React.FC = () => {
 
   useEffect(() => {
     loadSettings();
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await api.getUsers();
+      setUsers(res.users);
+    } catch {
+      // Ignore user list fetch error if non-admin or initial
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleApproveUser = async (id: string, name: string) => {
+    setUserActionMsg(null);
+    try {
+      const res = await api.approveUser(id);
+      setUserActionMsg({ type: 'success', text: `✅ Approved ${name}: ${res.message}` });
+      await loadUsers();
+    } catch (err: any) {
+      setUserActionMsg({ type: 'error', text: `❌ ${err.message || 'Failed to approve user.'}` });
+    }
+  };
+
+  const handleRejectUser = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to reject registration for "${name}"?`)) return;
+    setUserActionMsg(null);
+    try {
+      const res = await api.rejectUser(id);
+      setUserActionMsg({ type: 'success', text: `⚠️ Rejected ${name}: ${res.message}` });
+      await loadUsers();
+    } catch (err: any) {
+      setUserActionMsg({ type: 'error', text: `❌ ${err.message || 'Failed to reject user.'}` });
+    }
+  };
+
+  const handleDeleteUser = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete user account "${name}"? This cannot be undone.`)) return;
+    setUserActionMsg(null);
+    try {
+      const res = await api.deleteUser(id);
+      setUserActionMsg({ type: 'success', text: `🗑️ Deleted ${name}: ${res.message}` });
+      await loadUsers();
+    } catch (err: any) {
+      setUserActionMsg({ type: 'error', text: `❌ ${err.message || 'Failed to delete user.'}` });
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    setDownloadingDb(true);
+    setDownloadError(null);
+    try {
+      await api.downloadDatabaseBackup();
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download database backup.');
+    } finally {
+      setDownloadingDb(false);
+    }
+  };
+
+  const handleDownloadExport = async (format: 'json' | 'yaml') => {
+    setDownloadingExport(format);
+    setDownloadError(null);
+    try {
+      await api.downloadBulkExport(format);
+    } catch (err: any) {
+      setDownloadError(err.message || `Failed to download ${format.toUpperCase()} export.`);
+    } finally {
+      setDownloadingExport(null);
+    }
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -172,7 +259,28 @@ export const AdminView: React.FC = () => {
           onClick={() => setActiveTab('settings')}
           className={`btn btn-sm ${activeTab === 'settings' ? 'btn-primary' : 'btn-ghost'}`}
         >
-          <Settings size={16} /> App Settings & Nutrients
+          <Settings size={16} /> App Settings &amp; Nutrients
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('users'); loadUsers(); }}
+          className={`btn btn-sm ${activeTab === 'users' ? 'btn-primary' : 'btn-ghost'}`}
+          style={{ position: 'relative' }}
+        >
+          <Users size={16} /> User Approvals &amp; Accounts
+          {users.filter(u => u.status === 'pending').length > 0 && (
+            <span style={{
+              background: 'var(--amber)',
+              color: '#fff',
+              borderRadius: '10px',
+              padding: '1px 6px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              marginLeft: '6px'
+            }}>
+              {users.filter(u => u.status === 'pending').length}
+            </span>
+          )}
         </button>
 
         <button
@@ -200,7 +308,7 @@ export const AdminView: React.FC = () => {
           onClick={() => setActiveTab('backup')}
           className={`btn btn-sm ${activeTab === 'backup' ? 'btn-primary' : 'btn-ghost'}`}
         >
-          <Database size={16} /> Database Backup & Restore
+          <Database size={16} /> Database Backup &amp; Restore
         </button>
       </div>
 
@@ -282,16 +390,16 @@ export const AdminView: React.FC = () => {
             </div>
 
             <div className="form-group" style={{ marginTop: '14px' }}>
-              <label className="form-label">Google Gemini AI API Key (Free Tier)</label>
+              <label className="form-label">Google Gemini AI API Key (Optional / Legacy)</label>
               <input
                 type="password"
-                placeholder={settings.has_gemini_key ? '•••••••••••••••• (API Key Active)' : 'Enter Google AI Studio Gemini API Key'}
+                placeholder={settings.has_gemini_key ? '•••••••••••••••• (API Key Active)' : 'Optional Google AI Studio Gemini API Key'}
                 value={settings.gemini_api_key || ''}
                 onChange={(e) => setSettings({ ...settings, gemini_api_key: e.target.value })}
                 className="form-input"
               />
               <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '4px', display: 'block' }}>
-                Used for AI Recipe Parsing & AI Meal Balancing. Obtain a free key from <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer">Google AI Studio</a>.
+                Note: Google has decommissioned AI keys for many individual accounts. FamilyMeals now includes a 100% offline, free Recipe Text Importer and UK CoFID nutrition database that operates without any external AI keys.
               </span>
             </div>
 
@@ -318,7 +426,193 @@ export const AdminView: React.FC = () => {
         </form>
       )}
 
-      {/* TAB 2: SMTP Email Settings */}
+      {/* TAB 2: User Management & Approvals */}
+      {activeTab === 'users' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {userActionMsg && (
+            <div className={`alert alert-${userActionMsg.type}`}>
+              {userActionMsg.text}
+            </div>
+          )}
+
+          {/* Pending Approvals Card */}
+          <div className="card" style={{ borderColor: users.filter(u => u.status === 'pending').length > 0 ? 'var(--amber)' : undefined }}>
+            <div className="card-header" style={{ background: users.filter(u => u.status === 'pending').length > 0 ? 'var(--amber-light)' : undefined }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Clock size={20} color={users.filter(u => u.status === 'pending').length > 0 ? 'var(--amber-text)' : 'var(--text-muted)'} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: users.filter(u => u.status === 'pending').length > 0 ? 'var(--amber-text)' : 'inherit' }}>
+                    Pending Account Approvals ({users.filter(u => u.status === 'pending').length})
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Review new accounts registered by family members and approve or reject access.
+                  </p>
+                </div>
+              </div>
+              <button onClick={loadUsers} disabled={loadingUsers} className="btn btn-outline btn-sm">
+                Refresh
+              </button>
+            </div>
+            <div className="card-body" style={{ padding: 0 }}>
+              {users.filter(u => u.status === 'pending').length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <CheckCircle size={32} color="var(--secondary)" style={{ marginBottom: '8px' }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>No pending registrations.</p>
+                  <span style={{ fontSize: '0.85rem' }}>All user accounts have been reviewed and approved.</span>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-card-subtle)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '10px 14px' }}>Name</th>
+                        <th style={{ padding: '10px 14px' }}>Email</th>
+                        <th style={{ padding: '10px 14px' }}>Registered At</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.filter(u => u.status === 'pending').map(u => (
+                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '12px 14px', fontWeight: 600 }}>{u.name}</td>
+                          <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{u.email}</td>
+                          <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: 'var(--text-light)' }}>
+                            {new Date(u.created_at).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveUser(u.id, u.name)}
+                                className="btn btn-sm"
+                                style={{ background: 'var(--secondary)', color: '#fff' }}
+                                title="Approve account"
+                              >
+                                <Check size={15} /> Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectUser(u.id, u.name)}
+                                className="btn btn-sm btn-outline"
+                                style={{ borderColor: 'var(--amber)', color: 'var(--amber-text)' }}
+                                title="Reject account"
+                              >
+                                <X size={15} /> Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* All Registered Users Table */}
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem' }}>All Registered Accounts ({users.length})</h3>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Active administrator and family member accounts across the platform.
+                </p>
+              </div>
+            </div>
+            <div className="card-body" style={{ padding: 0 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-card-subtle)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
+                      <th style={{ padding: '10px 14px' }}>Name</th>
+                      <th style={{ padding: '10px 14px' }}>Email</th>
+                      <th style={{ padding: '10px 14px' }}>Role</th>
+                      <th style={{ padding: '10px 14px' }}>Status</th>
+                      <th style={{ padding: '10px 14px' }}>Registered</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 600 }}>{u.name}</td>
+                        <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{u.email}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            background: u.role === 'admin' ? 'var(--primary-light)' : 'var(--bg-card-subtle)',
+                            color: u.role === 'admin' ? 'var(--primary)' : 'inherit'
+                          }}>
+                            {u.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            background: u.status === 'approved' ? 'var(--macro-protein-bg)' : (u.status === 'pending' ? 'var(--amber-light)' : '#fee2e2'),
+                            color: u.status === 'approved' ? 'var(--secondary)' : (u.status === 'pending' ? 'var(--amber-text)' : '#dc2626')
+                          }}>
+                            {u.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: 'var(--text-light)' }}>
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          {u.role !== 'admin' && (
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              {u.status !== 'approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveUser(u.id, u.name)}
+                                  className="btn btn-ghost btn-sm"
+                                  title="Approve user"
+                                  style={{ color: 'var(--secondary)' }}
+                                >
+                                  <Check size={15} />
+                                </button>
+                              )}
+                              {u.status !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRejectUser(u.id, u.name)}
+                                  className="btn btn-ghost btn-sm"
+                                  title="Reject user"
+                                  style={{ color: 'var(--amber-text)' }}
+                                >
+                                  <X size={15} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                className="btn btn-ghost btn-sm"
+                                title="Delete user"
+                                style={{ color: '#dc2626' }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SMTP Email Settings */}
       {activeTab === 'smtp' && settings && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <form onSubmit={handleSaveSettings} className="card">
@@ -533,7 +827,7 @@ export const AdminView: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Bulk Export Recipes, Meals & Plans</h3>
+              <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Bulk Export Recipes, Meals &amp; Plans</h3>
               <p style={{ margin: '2px 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 Download all database recipes, schedule meals, and weekly meal plans in standardized YAML or JSON.
               </p>
@@ -544,14 +838,30 @@ export const AdminView: React.FC = () => {
               Export files can be archived, transferred to other FamilyMeals instances, or used in offline meal planning systems.
             </p>
 
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-              <a href={api.getBulkExportUrl('json')} download className="btn btn-primary btn-lg">
-                <Download size={18} /> Export as JSON (.json)
-              </a>
+            {downloadError && (
+              <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+                {downloadError}
+              </div>
+            )}
 
-              <a href={api.getBulkExportUrl('yaml')} download className="btn btn-secondary btn-lg">
-                <Download size={18} /> Export as YAML (.yaml)
-              </a>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleDownloadExport('json')}
+                disabled={downloadingExport === 'json'}
+                className="btn btn-primary btn-lg"
+              >
+                <Download size={18} /> {downloadingExport === 'json' ? 'Downloading JSON...' : 'Export as JSON (.json)'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDownloadExport('yaml')}
+                disabled={downloadingExport === 'yaml'}
+                className="btn btn-secondary btn-lg"
+              >
+                <Download size={18} /> {downloadingExport === 'yaml' ? 'Downloading YAML...' : 'Export as YAML (.yaml)'}
+              </button>
             </div>
           </div>
         </div>
@@ -569,9 +879,21 @@ export const AdminView: React.FC = () => {
               <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>
                 Download a complete, live snapshot of your SQLite persistence database (including all users, recipes, ingredients, meal plans, and shopping lists).
               </p>
-              <a href={api.getDatabaseBackupUrl()} download className="btn btn-primary">
-                <Download size={16} /> Download Live .db Backup File
-              </a>
+
+              {downloadError && (
+                <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+                  {downloadError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadBackup}
+                disabled={downloadingDb}
+                className="btn btn-primary"
+              >
+                <Download size={16} /> {downloadingDb ? 'Downloading DB Snapshot...' : 'Download Live .db Backup File'}
+              </button>
             </div>
           </div>
 

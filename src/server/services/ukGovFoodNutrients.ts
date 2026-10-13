@@ -543,6 +543,138 @@ export const UK_GOV_COFID_FOODS: CofidFoodEntry[] = [
     carbs100g: 0.8,
     fat100g: 0.2,
     pieceGrams: 250 // cup
+  },
+  {
+    names: ['mustard', 'english mustard', 'yellow mustard', 'prepared mustard', 'french mustard', "colman's mustard"],
+    displayName: 'English / Prepared Mustard',
+    category: 'Pantry',
+    macroType: '',
+    kcal100g: 156,
+    protein100g: 6.8,
+    carbs100g: 6.2,
+    fat100g: 11.4,
+    pieceGrams: 15 // 1 tbsp ~ 15g
+  },
+  {
+    names: ['dijon mustard'],
+    displayName: 'Dijon Mustard',
+    category: 'Pantry',
+    macroType: '',
+    kcal100g: 148,
+    protein100g: 7.0,
+    carbs100g: 5.5,
+    fat100g: 10.9,
+    pieceGrams: 15
+  },
+  {
+    names: ['wholegrain mustard', 'grain mustard'],
+    displayName: 'Wholegrain Mustard',
+    category: 'Pantry',
+    macroType: '',
+    kcal100g: 165,
+    protein100g: 7.2,
+    carbs100g: 7.5,
+    fat100g: 12.0,
+    pieceGrams: 15
+  },
+  {
+    names: ['mayonnaise', 'mayo', 'real mayonnaise'],
+    displayName: 'Mayonnaise',
+    category: 'Pantry',
+    macroType: 'fat',
+    kcal100g: 680,
+    protein100g: 1.1,
+    carbs100g: 2.6,
+    fat100g: 74.8,
+    pieceGrams: 15 // 1 tbsp
+  },
+  {
+    names: ['ketchup', 'tomato ketchup', 'tomato sauce'],
+    displayName: 'Tomato Ketchup',
+    category: 'Pantry',
+    macroType: 'carbohydrates',
+    kcal100g: 112,
+    protein100g: 1.3,
+    carbs100g: 25.8,
+    fat100g: 0.1,
+    pieceGrams: 15
+  },
+  {
+    names: ['soy sauce', 'dark soy sauce', 'light soy sauce'],
+    displayName: 'Soy Sauce',
+    category: 'Pantry',
+    macroType: '',
+    kcal100g: 60,
+    protein100g: 8.5,
+    carbs100g: 5.6,
+    fat100g: 0.1,
+    pieceGrams: 15
+  },
+  {
+    names: ['vinegar', 'malt vinegar', 'cider vinegar', 'white vinegar', 'balsamic vinegar', 'wine vinegar'],
+    displayName: 'Vinegar (Malt / Cider / Balsamic)',
+    category: 'Pantry',
+    macroType: '',
+    kcal100g: 22,
+    protein100g: 0.4,
+    carbs100g: 0.6,
+    fat100g: 0.0,
+    pieceGrams: 15
+  },
+  {
+    names: ['salt', 'table salt', 'sea salt'],
+    displayName: 'Salt',
+    category: 'Spices & Seasonings',
+    macroType: '',
+    kcal100g: 0,
+    protein100g: 0.0,
+    carbs100g: 0.0,
+    fat100g: 0.0,
+    pieceGrams: 5 // 1 tsp
+  },
+  {
+    names: ['black pepper', 'ground black pepper', 'peppercorns', 'pepper'],
+    displayName: 'Black Pepper (ground)',
+    category: 'Spices & Seasonings',
+    macroType: '',
+    kcal100g: 251,
+    protein100g: 10.4,
+    carbs100g: 38.7,
+    fat100g: 3.3,
+    pieceGrams: 3 // 1 tsp
+  },
+  {
+    names: ['paprika', 'smoked paprika'],
+    displayName: 'Paprika / Smoked Paprika',
+    category: 'Spices & Seasonings',
+    macroType: '',
+    kcal100g: 282,
+    protein100g: 14.1,
+    carbs100g: 34.0,
+    fat100g: 12.8,
+    pieceGrams: 3
+  },
+  {
+    names: ['cumin', 'ground cumin'],
+    displayName: 'Ground Cumin',
+    category: 'Spices & Seasonings',
+    macroType: '',
+    kcal100g: 375,
+    protein100g: 17.8,
+    carbs100g: 33.7,
+    fat100g: 22.3,
+    pieceGrams: 3
+  },
+  {
+    names: ['oregano', 'dried oregano', 'thyme', 'dried thyme', 'rosemary', 'dried rosemary', 'mixed herbs', 'italian herbs'],
+    displayName: 'Dried Culinary Herbs (Oregano/Thyme/Rosemary)',
+    category: 'Spices & Seasonings',
+    macroType: '',
+    kcal100g: 265,
+    protein100g: 9.0,
+    carbs100g: 45.0,
+    fat100g: 5.0,
+    pieceGrams: 2
   }
 ];
 
@@ -603,32 +735,65 @@ export function estimateGrams(amount: number, unit: string, entry: CofidFoodEntr
   }
 }
 
-// Find closest UK CoFID entry
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Find closest UK CoFID entry using strict word-boundary matching
 export function lookupUkGovNutrient(itemName: string, amount: number = 100, unit: string = 'g') {
   if (!itemName || !itemName.trim()) {
     return null;
   }
 
   const query = itemName.trim().toLowerCase();
+  if (query.length < 3) {
+    return null;
+  }
 
   // 1. Direct or alias match
   let matched = UK_GOV_COFID_FOODS.find(entry =>
-    entry.names.some(alias => alias === query || query === alias)
+    entry.names.some(alias => alias === query)
   );
 
-  // 2. Partial substring match
+  // 2. Plural/singular normalization
   if (!matched) {
+    const singularQuery = query.endsWith('s') && !query.endsWith('ss') ? query.slice(0, -1) : query;
     matched = UK_GOV_COFID_FOODS.find(entry =>
-      entry.names.some(alias => query.includes(alias) || alias.includes(query))
+      entry.names.some(alias => {
+        const singularAlias = alias.endsWith('s') && !alias.endsWith('ss') ? alias.slice(0, -1) : alias;
+        return singularAlias === singularQuery;
+      })
     );
   }
 
-  // 3. Word token overlap
+  // 3. Whole-word boundary matching (query is an entire word in alias, or alias is an entire word in query)
   if (!matched) {
-    const tokens = query.split(/\s+/).filter(t => t.length > 2);
     matched = UK_GOV_COFID_FOODS.find(entry =>
-      tokens.some(token => entry.names.some(alias => alias.includes(token)))
+      entry.names.some(alias => {
+        const queryRegex = new RegExp('\\b' + escapeRegex(query) + '\\b', 'i');
+        if (queryRegex.test(alias)) return true;
+
+        const aliasRegex = new RegExp('\\b' + escapeRegex(alias) + '\\b', 'i');
+        if (aliasRegex.test(query)) return true;
+
+        return false;
+      })
     );
+  }
+
+  // 4. Token overlap matching ONLY with strict whole-word boundaries on significant tokens (length >= 4)
+  if (!matched) {
+    const tokens = query.split(/\s+/).filter(t => t.length >= 4);
+    if (tokens.length > 0) {
+      matched = UK_GOV_COFID_FOODS.find(entry =>
+        entry.names.some(alias =>
+          tokens.some(token => {
+            const tokenRegex = new RegExp('\\b' + escapeRegex(token) + '\\b', 'i');
+            return tokenRegex.test(alias);
+          })
+        )
+      );
+    }
   }
 
   if (!matched) {

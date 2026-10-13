@@ -66,23 +66,13 @@ router.post('/register', (req, res): void => {
     const now = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, name, role, saved_emails, distribution_lists, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'user', '[]', '[]', ?, ?)
+      INSERT INTO users (id, email, password_hash, name, role, status, saved_emails, distribution_lists, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'user', 'pending', '[]', '[]', ?, ?)
     `).run(id, email.toLowerCase().trim(), passwordHash, name.trim(), now, now);
 
-    const token = jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
-
     res.json({
-      user: {
-        id,
-        email: email.toLowerCase().trim(),
-        name: name.trim(),
-        role: 'user',
-        saved_emails: [],
-        distribution_lists: [],
-        created_at: now
-      },
-      token
+      message: 'Registration successful! Your account has been registered and is pending administrator approval before you can log in.',
+      pending: true
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Registration failed.' });
@@ -99,7 +89,7 @@ router.post('/login', (req, res): void => {
       return;
     }
 
-    const row = db.prepare('SELECT id, email, password_hash, name, role, saved_emails, distribution_lists, created_at FROM users WHERE email = ?').get(email.toLowerCase().trim()) as any;
+    const row = db.prepare('SELECT id, email, password_hash, name, role, status, saved_emails, distribution_lists, created_at FROM users WHERE email = ?').get(email.toLowerCase().trim()) as any;
     if (!row) {
       res.status(401).json({ error: 'Invalid email or password.' });
       return;
@@ -111,6 +101,16 @@ router.post('/login', (req, res): void => {
       return;
     }
 
+    if (row.status === 'pending') {
+      res.status(403).json({ error: 'Your account is pending administrator approval before you can access the system. Please contact your family admin.' });
+      return;
+    }
+
+    if (row.status === 'rejected') {
+      res.status(403).json({ error: 'Your account registration was rejected by an administrator.' });
+      return;
+    }
+
     const token = jwt.sign({ id: row.id }, JWT_SECRET, { expiresIn: '30d' });
 
     res.json({
@@ -119,6 +119,7 @@ router.post('/login', (req, res): void => {
         email: row.email,
         name: row.name,
         role: row.role,
+        status: row.status || 'approved',
         saved_emails: JSON.parse(row.saved_emails || '[]'),
         distribution_lists: JSON.parse(row.distribution_lists || '[]'),
         created_at: row.created_at
@@ -155,7 +156,7 @@ router.post('/google', async (req, res): Promise<void> => {
       return;
     }
 
-    let user = db.prepare('SELECT id, email, name, role, saved_emails, distribution_lists, created_at FROM users WHERE email = ?').get(email) as any;
+    let user = db.prepare('SELECT id, email, name, role, status, saved_emails, distribution_lists, created_at FROM users WHERE email = ?').get(email) as any;
 
     if (!user) {
       // Check if registrations are allowed
@@ -165,26 +166,31 @@ router.post('/google', async (req, res): Promise<void> => {
         return;
       }
 
-      // Create new user account with secure random unusable password hash
+      // Create new user account with status = 'pending'
       const id = crypto.randomUUID();
       const randomSecret = crypto.randomBytes(32).toString('hex');
       const passwordHash = bcrypt.hashSync(randomSecret, 12);
       const now = new Date().toISOString();
 
       db.prepare(`
-        INSERT INTO users (id, email, password_hash, name, role, saved_emails, distribution_lists, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'user', '[]', '[]', ?, ?)
+        INSERT INTO users (id, email, password_hash, name, role, status, saved_emails, distribution_lists, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'user', 'pending', '[]', '[]', ?, ?)
       `).run(id, email, passwordHash, name, now, now);
 
-      user = {
-        id,
-        email,
-        name,
-        role: 'user',
-        saved_emails: '[]',
-        distribution_lists: '[]',
-        created_at: now
-      };
+      res.status(403).json({
+        error: 'Registration via Google successful! Your account is currently pending administrator approval before you can access the application.'
+      });
+      return;
+    }
+
+    if (user.status === 'pending') {
+      res.status(403).json({ error: 'Your account is pending administrator approval before you can access the system. Please contact your family admin.' });
+      return;
+    }
+
+    if (user.status === 'rejected') {
+      res.status(403).json({ error: 'Your account registration was rejected by an administrator.' });
+      return;
     }
 
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -195,6 +201,7 @@ router.post('/google', async (req, res): Promise<void> => {
         email: user.email,
         name: user.name,
         role: user.role,
+        status: user.status || 'approved',
         saved_emails: JSON.parse(user.saved_emails || '[]'),
         distribution_lists: JSON.parse(user.distribution_lists || '[]'),
         created_at: user.created_at

@@ -142,12 +142,23 @@ export const MealPlanEditorView: React.FC<MealPlanEditorViewProps> = ({
 
   const handleStartDateChange = (val: string) => {
     setStartDate(val);
-    const defaultName = `Meal Plan for ${val} to ${endDate}`;
+    let newEnd = endDate;
+    if (endDate && val && endDate < val) {
+      newEnd = val;
+      setEndDate(val);
+    }
+    const defaultName = `Meal Plan for ${val} to ${newEnd}`;
     setName(defaultName);
-    if (!planId) rebuildDays(val, endDate);
+    setError('');
+    if (!planId) rebuildDays(val, newEnd);
   };
 
   const handleEndDateChange = (val: string) => {
+    if (startDate && val && val < startDate) {
+      setError('End date cannot be earlier than start date.');
+      return;
+    }
+    setError('');
     setEndDate(val);
     const defaultName = `Meal Plan for ${startDate} to ${val}`;
     setName(defaultName);
@@ -283,6 +294,11 @@ export const MealPlanEditorView: React.FC<MealPlanEditorViewProps> = ({
 
   // Save Meal Plan
   const handleSave = async (): Promise<string | null> => {
+    if (startDate && endDate && endDate < startDate) {
+      setError('End date cannot be earlier than start date.');
+      return null;
+    }
+
     setLoading(true);
     setError('');
     setSuccessMsg('');
@@ -465,7 +481,10 @@ export const MealPlanEditorView: React.FC<MealPlanEditorViewProps> = ({
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Start Date</label>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={15} color="var(--primary)" />
+                <span>Start Date</span>
+              </label>
               <input
                 type="date"
                 value={startDate}
@@ -475,9 +494,13 @@ export const MealPlanEditorView: React.FC<MealPlanEditorViewProps> = ({
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">End Date</label>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={15} color="var(--primary)" />
+                <span>End Date</span>
+              </label>
               <input
                 type="date"
+                min={startDate}
                 value={endDate}
                 onChange={(e) => handleEndDateChange(e.target.value)}
                 className="form-input"

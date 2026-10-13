@@ -3,7 +3,7 @@ import { Recipe } from '../../types/index.js';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.js';
 import { MacroPill } from '../components/MacroPill.js';
-import { ChefHat, Plus, Search, Clock, Users, Sparkles, Globe, Lock } from 'lucide-react';
+import { ChefHat, Plus, Search, Clock, Users, FileText, Globe, Lock } from 'lucide-react';
 
 interface RecipesViewProps {
   onSelectRecipe: (id: string) => void;
@@ -52,8 +52,8 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {user && (
             <button onClick={onOpenAiAssistant} className="btn btn-secondary">
-              <Sparkles size={18} />
-              <span>AI Recipe Assistant</span>
+              <FileText size={18} />
+              <span>Import Recipe Text</span>
             </button>
           )}
 

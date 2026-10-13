@@ -171,7 +171,7 @@ export const PublicShoppingListView: React.FC<PublicShoppingListViewProps> = ({ 
                         color: item.checked ? 'var(--text-light)' : 'var(--primary)',
                         fontSize: '0.92rem'
                       }}>
-                        {item.amount} {item.unit}
+                        {item.amount && item.amount > 0 ? `${item.amount} ${item.unit}`.trim() : ''}
                       </span>
                     </li>
                   ))}

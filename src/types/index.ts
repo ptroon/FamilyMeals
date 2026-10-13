@@ -11,6 +11,7 @@ export interface User {
   email: string;
   name: string;
   role: 'admin' | 'user';
+  status: 'pending' | 'approved' | 'rejected';
   saved_emails?: string[];
   distribution_lists?: DistributionList[];
   created_at: string;

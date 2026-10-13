@@ -333,6 +333,34 @@ button, input, select, textarea {
   line-height: 1.5;
 }
 
+/* Date Input & Prominent Calendar Picker Indicator */
+input[type="date"] {
+  cursor: pointer;
+  position: relative;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 2px;
+  font-size: 1.25rem;
+  opacity: 0.95;
+  filter: invert(36%) sepia(55%) saturate(750%) hue-rotate(334deg) brightness(92%) contrast(92%);
+  border-radius: 4px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(65%) sepia(45%) saturate(700%) hue-rotate(330deg) brightness(110%) contrast(100%);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.18);
+  opacity: 1;
+}
+
 /* Macro Nutrient Badges & Pills */
 .macro-group {
   display: flex;

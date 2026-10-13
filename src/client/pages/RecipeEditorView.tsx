@@ -92,7 +92,17 @@ export const RecipeEditorView: React.FC<RecipeEditorViewProps> = ({ recipeId, on
 
   // Dynamic UK Government CoFID nutrient lookup
   const triggerNutrientLookup = async (index: number, itemName: string, amount: number, unit: string) => {
-    if (!itemName || itemName.trim().length < 2) return;
+    if (!itemName || itemName.trim().length < 2) {
+      setIngredients(prev => {
+        const copy = [...prev];
+        if (copy[index]) {
+          copy[index] = { ...copy[index], matched_cofid: undefined } as any;
+        }
+        return copy;
+      });
+      return;
+    }
+
     try {
       const res = await api.lookupNutrients(itemName, amount || 100, unit || 'g');
       if (res && res.found) {
@@ -109,6 +119,17 @@ export const RecipeEditorView: React.FC<RecipeEditorViewProps> = ({ recipeId, on
             category: res.category || curr.category,
             macro_type: res.macro_type || curr.macro_type,
             matched_cofid: res.matchedFood
+          } as any;
+          return copy;
+        });
+      } else {
+        setIngredients(prev => {
+          const copy = [...prev];
+          const curr = copy[index];
+          if (!curr) return prev;
+          copy[index] = {
+            ...curr,
+            matched_cofid: 'not_found'
           } as any;
           return copy;
         });
@@ -462,7 +483,11 @@ export const RecipeEditorView: React.FC<RecipeEditorViewProps> = ({ recipeId, on
                 {/* Bottom Row: Dynamic & Editable Macronutrients */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', paddingTop: '4px', borderTop: '1px dashed var(--border-color)' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>
-                    {(ing as any).matched_cofid ? (
+                    {(ing as any).matched_cofid === 'not_found' ? (
+                      <span style={{ color: 'var(--amber-text)', fontWeight: 600 }}>
+                        ⚠️ UK CoFID: Not found (enter values manually or leave blank)
+                      </span>
+                    ) : (ing as any).matched_cofid ? (
                       <span style={{ color: 'var(--secondary)', fontWeight: 600 }}>
                         ✓ UK Gov CoFID: {(ing as any).matched_cofid}
                       </span>

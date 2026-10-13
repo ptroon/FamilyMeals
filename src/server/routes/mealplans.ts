@@ -178,6 +178,11 @@ router.post('/', authenticate, (req: AuthenticatedRequest, res: Response): void 
       return;
     }
 
+    if (new Date(end_date) < new Date(start_date)) {
+      res.status(400).json({ error: 'End date cannot be earlier than start date.' });
+      return;
+    }
+
     const planName = (name && name.trim()) ? name.trim() : getDefaultPlanName(start_date, end_date);
     const planId = crypto.randomUUID();
     const shareToken = generateShareToken();
@@ -280,6 +285,11 @@ router.put('/:id', authenticate, (req: AuthenticatedRequest, res: Response): voi
       notes = '',
       days = []
     } = req.body;
+
+    if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+      res.status(400).json({ error: 'End date cannot be earlier than start date.' });
+      return;
+    }
 
     const planName = (name && name.trim()) ? name.trim() : getDefaultPlanName(start_date, end_date);
     const now = new Date().toISOString();
